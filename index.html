@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AirAssist v3 — Hearing Enhancement Prototype</title>
+<style>
+:root {
+  --bg: #0e0e0e; --fg:#e9f2ff; --accent:#00ffcc; --muted:#7aa0b8;
+  --panel:#16181c; --danger:#ff4d4d;
+}
+[data-theme="light"] {
+  --bg:#f5f5f5; --fg:#202020; --accent:#007777; --muted:#555; --panel:#fff;
+}
+body {
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family: system-ui, sans-serif; line-height:1.5;
+}
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 50px 30px;
+}
+header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+h1 { font-size:2rem; color:var(--accent); margin:0 0 8px;}
+.small{font-size:0.9rem;color:var(--muted);}
+.card{
+  transition: box-shadow 0.3s;
+}
+[data-theme="light"] .card { box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+[data-theme="dark"] .card { box-shadow: 0 6px 16px rgba(0,0,0,0.5); }
+
+.card{
+  background:var(--panel);
+  border-radius:12px;
+  padding:28px;
+  margin-top:30px;
+  box-shadow:0 6px 16px rgba(0,0,0,0.5);
+}
+.row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  align-items:center;
+  justify-content:flex-start;
+  margin-bottom:20px;
+}
+button,select,input[type="range"]{
+  border-radius:10px;
+  padding:12px 18px;
+  font-size:1rem;
+}
+button {
+  border-radius:10px;
+  padding:12px 18px;
+  font-size:1rem;
+  font-weight:600;
+  min-width:120px;
+  cursor:pointer;
+  border:1px solid var(--accent);
+  background: var(--panel);
+  color: var(--fg);
+}
+button:hover {
+  box-shadow:0 0 8px rgba(0,255,204,0.2);
+  background: var(--accent);
+  color: var(--bg);
+}
+button.stop {
+  background:#300;
+  color:#ffd2d2;
+  border-color:#600;
+}
+button.danger {
+  background:#600;
+  color:#fff;
+  border:1px solid #a00;
+}
+button:hover{box-shadow:0 0 8px rgba(0,255,204,0.2);}
+button.stop{background:#300;color:#ffd2d2;border-color:#600;}
+button.danger{background:#600;color:#fff;border:1px solid #a00;}
+canvas {
+  width:100%;
+  height:240px;
+  border-radius:10px;
+  background: var(--panel);
+}
+[data-theme="light"] canvas { background:#101217; }
+[data-theme="dark"] canvas { background:#fff; }
+.latency-badge {
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:8px;
+  background: var(--panel);
+  font-weight:600;
+}
+footer{margin-top:40px;text-align:center;font-size:0.9rem;color:var(--muted);transition:color 0.3s;} footer:hover{color:var(--accent);}
+label { font-weight:600; }
+.device-select {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+</style>
+</head>
+<body data-theme="dark">
+<div class="wrap">
+  <header>
+    <h1>AirAssist v3</h1>
+    <p class="small">Live mic → filters → compressor → monitor. Use Bluetooth headphones to avoid feedback.</p>
+  </header>
+
+  <div class="card">
+    <div class="row">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn" class="stop">Stop</button>
+      <button id="muteBtn" class="danger">Emergency Mute</button>
+      <button id="themeBtn">Toggle Theme</button>
+    </div>
+
+    <!-- Devices on one line -->
+    <div class="row">
+      <div class="device-select">
+        <label for="micSelect">🎤 Input:</label>
+        <select id="micSelect">
+          <option value="">Built-in Microphone (Default)</option>
+        </select>
+      </div>
+      <div class="device-select">
+        <label for="outSelect">🎧 Output:</label>
+        <select id="outSelect">
+          <option value="">Built-in Speakers (Default)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="preset" data-type="speech">Speech Clear</button>
+      <button class="preset" data-type="noise">Noise Cut</button>
+      <button class="preset" data-type="natural">Natural</button>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="notchToggle"> Notch 50/60Hz</label>
+      <label><input type="checkbox" id="gateToggle"> Noise Gate</label>
+      <label><input type="checkbox" id="presenceToggle"> Presence Boost</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>Volume <span id="gainVal">1.0</span><br>
+      <input type="range" id="gainCtrl" min="0" max="3" step="0.01" value="1.0"></label>
+      <label>High-pass <span id="hpVal">150</span>Hz<br>
+      <input type="range" id="hpCtrl" min="20" max="1000" step="1" value="150"></label>
+      <label>Low-pass <span id="lpVal">6000</span>Hz<br>
+      <input type="range" id="lpCtrl" min="1000" max="12000" step="100" value="6000"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Visualizer Mode:
+      <select id="vizMode">
+        <option value="spectrum">Spectrum</option>
+        <option value="wave">Waveform</option>
+        <option value="split">Split</option>
+      </select>
+    </label>
+    <canvas id="visualizer" height="240"></canvas>
+    <div class="small">Latency: <span id="latencyVal">--</span> ms</div>
+  </div>
+
+  <footer>AirAssist v3 • WePower</footer>
+</div>
+
+<script>
+(async function(){
+  const micSelect=document.getElementById('micSelect');
+  const outSelect=document.getElementById('outSelect');
+  const startBtn=document.getElementById('startBtn');
+  const stopBtn=document.getElementById('stopBtn');
+  const muteBtn=document.getElementById('muteBtn');
+  const themeBtn=document.getElementById('themeBtn');
+  const gainCtrl=document.getElementById('gainCtrl');
+  const hpCtrl=document.getElementById('hpCtrl');
+  const lpCtrl=document.getElementById('lpCtrl');
+  const gainVal=document.getElementById('gainVal');
+  const hpVal=document.getElementById('hpVal');
+  const lpVal=document.getElementById('lpVal');
+  const notchToggle=document.getElementById('notchToggle');
+  const gateToggle=document.getElementById('gateToggle');
+  const presenceToggle=document.getElementById('presenceToggle');
+  const presets=document.querySelectorAll('.preset');
+  const vizMode=document.getElementById('vizMode');
+  const latencyVal=document.getElementById('latencyVal');
+  const canvas=document.getElementById('visualizer'); const ctx=canvas.getContext('2d');
+
+  let audioCtx,source,gainNode,hpFilter,lpFilter,notch,compressor,analyser,gate,presence;
+  let mediaStream,outputElem,drawReq;
+  let peakHold=new Uint8Array(1024);
+
+  function sizeCanvas(){const dpr=window.devicePixelRatio||1;canvas.width=canvas.clientWidth*dpr;canvas.height=canvas.clientHeight*dpr;ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);}
+  window.addEventListener('resize',sizeCanvas);sizeCanvas();
+
+  async function listDevices(){
+    const devs=await navigator.mediaDevices.enumerateDevices();
+    micSelect.innerHTML='<option value="">Built-in Microphone (Default)</option>';
+    outSelect.innerHTML='<option value="">Built-in Speakers (Default)</option>';
+    devs.forEach(d => {
+      const opt=document.createElement('option'); 
+      opt.value=d.deviceId; 
+      opt.text=d.label || (d.kind==='audioinput' ? "Microphone" : "Speaker/Headphones");
+      if(d.kind==='audioinput') micSelect.appendChild(opt);
+      if(d.kind==='audiooutput') outSelect.appendChild(opt);
+    });
+  }
+
+  async function start(){
+    if(audioCtx) return;
+    const cons={audio:{deviceId:micSelect.value?{exact:micSelect.value}:undefined}};
+    mediaStream=await navigator.mediaDevices.getUserMedia(cons);
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    source=audioCtx.createMediaStreamSource(mediaStream);
+    gainNode=audioCtx.createGain();
+    hpFilter=audioCtx.createBiquadFilter();hpFilter.type='highpass';
+    lpFilter=audioCtx.createBiquadFilter();lpFilter.type='lowpass';
+    notch=audioCtx.createBiquadFilter();notch.type='notch';notch.frequency.value=60;notch.Q.value=20;
+    compressor=audioCtx.createDynamicsCompressor();
+    analyser=audioCtx.createAnalyser();analyser.fftSize=1024;
+    gate=audioCtx.createDynamicsCompressor();gate.threshold.value=-50;gate.ratio.value=20;
+    presence=audioCtx.createBiquadFilter();presence.type='peaking';presence.frequency.value=3000;presence.gain.value=4;
+    // chain
+    source.connect(gainNode);gainNode.connect(hpFilter);hpFilter.connect(lpFilter);
+    let node=lpFilter;
+    if(notchToggle.checked){node.connect(notch);node=notch;}
+    if(presenceToggle.checked){node.connect(presence);node=presence;}
+    if(gateToggle.checked){node.connect(gate);node=gate;}
+    node.connect(compressor);compressor.connect(analyser);
+    outputElem=new Audio();outputElem.autoplay=true;
+    const dest=audioCtx.createMediaStreamDestination();analyser.connect(dest);outputElem.srcObject=dest.stream;
+    if(outSelect.value){try{await outputElem.setSinkId(outSelect.value);}catch(e){console.warn(e);}}
+    // UI
+    gainCtrl.oninput=()=>{let v=parseFloat(gainCtrl.value);if(v>2.5)v=2.5;gainNode.gain.value=v;gainVal.textContent=v.toFixed(2);};
+    hpCtrl.oninput=()=>{hpFilter.frequency.value=parseFloat(hpCtrl.value);hpVal.textContent=hpCtrl.value;};
+    lpCtrl.oninput=()=>{lpFilter.frequency.value=parseFloat(lpCtrl.value);lpVal.textContent=lpCtrl.value;};
+    muteBtn.onclick=()=>{gainNode.gain.value=0;gainVal.textContent='0';};
+    
+    presets.forEach(btn=>btn.onclick=()=>{
+      presets.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if(btn.dataset.type==='speech'){hpCtrl.value=200;lpCtrl.value=4000;gainCtrl.value=1.2;}
+      if(btn.dataset.type==='noise'){hpCtrl.value=400;lpCtrl.value=3000;gainCtrl.value=1.0;}
+      if(btn.dataset.type==='natural'){hpCtrl.value=100;lpCtrl.value=8000;gainCtrl.value=1.0;}
+      hpCtrl.oninput();lpCtrl.oninput();gainCtrl.oninput();
+    });
+await listDevices();
+    draw();
+  }
+
+  function stop(){
+    if(!audioCtx)return;
+    cancelAnimationFrame(drawReq);
+    mediaStream.getTracks().forEach(t=>t.stop());
+    audioCtx.close();
+    audioCtx=null;
+  }
+
+  function draw(){
+    sizeCanvas();
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    const mode=vizMode.value;
+    if(mode==='wave'||mode==='split'){
+      const buf=new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(buf);
+      ctx.beginPath();
+      const step=w/buf.length;
+      for(let i=0;i<buf.length;i++){
+        const y=h/2+(buf[i]-128)/128*h/2;
+        if(i===0)ctx.moveTo(0,y); else ctx.lineTo(i*step,y);
+      }
+      ctx.strokeStyle='#0ff'; ctx.stroke();
+    }
+    if(mode==='spectrum'||mode==='split'){
+      const data=new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      for(let i=0;i<data.length;i++){
+        if(data[i]>peakHold[i])peakHold[i]=data[i];
+        else peakHold[i]=Math.max(0,peakHold[i]-1);
+      }
+      const barW=w/data.length;
+      for(let i=0;i<data.length;i++){
+        const v=data[i]/255;
+        const barH=v*h;
+        ctx.fillStyle=`rgb(${80+v*150},${200-v*150},${255-v*100})`;
+        ctx.fillRect(i*barW,h-barH,barW,barH);
+        ctx.fillStyle='rgba(255,255,255,0.3)';
+        ctx.fillRect(i*barW,h-(peakHold[i]/255*h),barW,2);
+      }
+    }
+    latencyVal.textContent=(audioCtx.baseLatency*1000).toFixed(1);
+    drawReq=requestAnimationFrame(draw);
+  }
+
+  startBtn.onclick=start;
+  stopBtn.onclick=stop;
+  themeBtn.onclick=()=>{
+    document.body.dataset.theme=(document.body.dataset.theme==='dark'?'light':'dark');
+  };
+  listDevices();
+  navigator.mediaDevices.addEventListener('devicechange',listDevices);
+})();</script>
+</body>
+</html>
