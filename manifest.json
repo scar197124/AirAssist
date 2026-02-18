@@ -1,6 +1,6 @@
 {
-  "name": "AirAssist",
-  "short_name": "AirAssist",
+  "name": "EarAssist",
+  "short_name": "EarAssist",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f1115",

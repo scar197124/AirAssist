@@ -5,7 +5,7 @@
   <meta name="theme-color" content="#39ff14">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>EarAssist v6 — Audio Assist + Optional Live Captions</title>
+  <title>EarAssist — Audio Assist + Optional Live Captions</title>
   <style>
     :root { --bg:#0f1115; --fg:#e6edf3; --accent:#39ff14; --muted:#8aa3b0; --panel:#171a21; --line:#ffffff; --good:#1ee0a2; --warn:#ffb300; --bad:#ff5a5f; }
     [data-theme="light"]{ --bg:#f0f2f5; --fg:#1e2328; --accent:#007b7f; --muted:#545f69; --panel:#ffffff; --line:#000000; --good:#0fad82; --warn:#f59e0b; --bad:#ef4444; }
@@ -13,11 +13,67 @@
     [data-theme="ocean"]{ --bg:#003344; --fg:#d6deeb; --accent:#2bbac5; --muted:#9fb3c8; --panel:#005577; --line:#007799; --good:#22d3ee; --warn:#eab308; --bad:#fb7185; }
     [data-theme="orange"]{ --bg:#402000; --fg:#fff0e0; --accent:#ff8a00; --muted:#ffd166; --panel:#663300; --line:#ffd166; --good:#ffd166; --warn:#ffa600; --bad:#ef476f; }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; background:var(--bg); color:var(--fg); }
-    header { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:10; }
-    h1 { margin:0; font-size:18px; letter-spacing:.3px; font-weight:700; }
+    html { overflow-x:hidden; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; background:var(--bg); color:var(--fg); overflow-x:hidden;  overflow-x:hidden; }
+    header.hdr{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      padding:14px 16px 12px;
+      border-bottom:1px solid var(--line);
+      background:var(--panel);
+      position:relative;
+      z-index:10;
+    }
+    
+    /* ===== EarAssist 3-row balanced header ===== */
+    .hdrTitle{ text-align:center; line-height:1.05; }
+    .brand{
+      font-size:22px;
+      font-weight:850;
+      letter-spacing:.6px;
+      display:inline-block;
+      padding-bottom:6px;
+      position:relative;
+      text-transform:none;
+      text-shadow: 0 0 14px rgba(57,255,20,.18);
+    }
+    .brand::after{
+      content:"";
+      position:absolute;
+      left:10%;
+      right:10%;
+      bottom:0;
+      height:2px;
+      border-radius:999px;
+      background:linear-gradient(90deg, transparent, var(--accent), transparent);
+      box-shadow: 0 0 10px rgba(57,255,20,.25);
+    }
+    .tagline{ font-size:13px; opacity:.88; margin-top:6px; }
+    .dotSep{ opacity:.6; padding:0 6px; }
+
+    .hdrRow{ width:100%; max-width:1100px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; }
+    .hdrLabel{ font-size:13px; opacity:.95; display:flex; align-items:center; gap:8px; }
+    .hdrLabel select{ min-width:240px; }
+
+    .hdrBtns{ display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; }
+    .hdrMeta{ display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; }
+
+    /* Slightly smaller header buttons (mic/output stay readable) */
+    header.hdr button{ padding:7px 12px; border-radius:12px; font-size:13px; }
+    header.hdr .primary{ font-weight:800; }
+
+    @media (max-width:520px){
+      .hdrLabel select{ min-width: min(92vw, 360px); }
+      header.hdr{ padding:14px 12px 12px; }
+      header.hdr button{ padding:7px 10px; }
+    }
+h1 { margin:0; font-size:18px; letter-spacing:.3px; font-weight:700; }
     .row { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; }
-    select, button, input[type="range"] { background:#0d121a; color:var(--fg); border:1px solid var(--line); padding:8px 10px; border-radius:10px; }
+    select, button, input[type="range"] {
+      width: auto; background:#0d121a; color:var(--fg); border:1px solid var(--line); padding:10px 12px; border-radius:12px; font-size:15px; min-height:44px; }
     [data-theme="light"] select, [data-theme="light"] button, [data-theme="light"] input[type="range"] { background:#fff; }
     button { cursor:pointer; border:1px solid var(--line); background:var(--panel); transition:transform .05s ease, background .2s ease, border-color .2s ease; }
     button:hover { border-color:var(--accent); }
@@ -27,15 +83,25 @@
     .grid { display:grid; gap:12px; grid-template-columns: repeat(12, 1fr); }
     .card { grid-column: span 12; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow: 0 6px 14px rgba(0,0,0,.18); }
     .card h3 { margin:4px 0 10px; font-size:14px; opacity:.9; letter-spacing:.3px; }
-    .k { background:#0b1320; border:1px solid var(--line); padding:8px 10px; border-radius:10px; display:inline-flex; gap:8px; align-items:center; }
+    .k { background:#0b1320; border:1px solid var(--line); padding:10px 12px; border-radius:10px; display:inline-flex; gap:8px; align-items:center; }
     label { font-size:13px; opacity:.95; }
     .small { font-size:12px; opacity:.7; }
     .pill { padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:transparent; }
-    .bars { display:flex; align-items:center; gap:10px; }
-    .bars .g { flex:1; }
+    .bars { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+    .bars .g { flex:1; min-width:260px; }
     .split { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     @media (max-width:900px){ .split{ grid-template-columns:1fr; } }
+    @media (max-width:600px){
+      header .row{ width:100%; }
+      header label{ flex:1 1 48%; min-width:160px; }
+      header button{ flex:1 1 30%; }
+      header .pill.small{ flex:1 1 45%; }
+    }
+
+    input[type="range"]{ width:100%; }
     canvas { width:100%; height:220px; background:#0a0f18; border-radius:12px; border:1px solid var(--line); }
+    input[type=range]{ width:100%; }
+
 
     /* Range styling */
     input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:20px; height:20px; border-radius:50%; background:var(--accent); border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.4); cursor:pointer; margin-top:-6px; }
@@ -80,10 +146,19 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>EarAssist v6 — Audio Assist + Optional Live Captions</h1>
-    <div class="row">
-      <label>Theme
+  <header class="hdr">
+    <div class="hdrTitle">
+      <div class="brand" aria-label="EarAssist">EarAssist</div>
+      <div class="tagline">Audio Assist <span class="dotSep">•</span> Optional Live Captions</div>
+    </div>
+
+    <div class="hdrRow hdrRow2">
+      <label class="hdrLabel">Microphone <select id="micSelect"></select></label>
+      <label class="hdrLabel">Output <select id="outSelect"></select></label>
+    </div>
+
+    <div class="hdrRow hdrRow3">
+      <label class="hdrLabel">Theme
         <select id="themeSelect">
           <option value="dark">Dark</option>
           <option value="light">Light</option>
@@ -92,13 +167,17 @@
           <option value="orange">Orange</option>
         </select>
       </label>
-      <label>Mic <select id="micSelect"></select></label>
-      <label>Output <select id="outSelect"></select></label>
-      <button id="startBtn" class="primary">Start</button>
-      <button id="stopBtn">Stop</button>
-      <button id="muteBtn">Mute</button>
-      <span class="pill small">Latency: <span id="latencyVal">--</span> ms</span>
-      <span class="pill small">Gate: <span id="gateState">--</span></span>
+
+      <div class="hdrBtns" role="group" aria-label="Controls">
+        <button id="startBtn" class="primary">Start</button>
+        <button id="stopBtn">Stop</button>
+        <button id="muteBtn">Mute</button>
+      </div>
+
+      <div class="hdrMeta" aria-label="Status">
+        <span class="pill small">Latency: <span id="latencyVal">--</span> ms</span>
+        <span class="pill small">Gate: <span id="gateState">--</span></span>
+      </div>
     </div>
   </header>
 
@@ -874,5 +953,15 @@
 
 })();
 </script>
+
+<script>
+  // PWA: service worker (works on https or localhost)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+</script>
+
 </body>
 </html>
